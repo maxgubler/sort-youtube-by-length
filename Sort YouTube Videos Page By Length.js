@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         Sort YouTube Videos Page By Length
 // @namespace    https://github.com/maxgubler/
-// @version      0.3.0
+// @version      0.3.2
 // @description  Loads all videos and sorts by length
 // @author       Max Gubler
 // @match        https://www.youtube.com/*/videos*
 // @run-at       document-start
 // @grant        none
 // ==/UserScript==
+/* TODO: Fix TypeError: ul is null when navigating away from videos page */
 
 function hmsToSeconds(str) {
     var p = str.split(':'), s = 0, m = 1;
@@ -109,10 +110,21 @@ function fixSubnavList(order){
     }
 }
 
+function createMenuOptions() {
+    var ul = document.querySelector('.subnav-sort-menu>ul');
+    var ytUser = document.querySelector('#appbar-nav>a').attributes.href.value;
+
+    ul.innerHTML += "<li role=\"menuitem\"><span href=\"" + ytUser + "/videos?sort=la&amp;view=0&amp;flow=list\" onclick=\";yt.window.navigate(this.getAttribute('href'));return false;\" class=\" yt-uix-button-menu-item spf-link\">Length (ascending)</span></li>";
+    ul.innerHTML += "<li role=\"menuitem\"><span href=\"" + ytUser + "/videos?sort=ld&amp;view=0&amp;flow=list\" onclick=\";yt.window.navigate(this.getAttribute('href'));return false;\" class=\" yt-uix-button-menu-item spf-link\">Length (descending)</span></li>";
+}
+
 function hideListItems() {
     var li = document.querySelector('#browse-items-primary>li');
     var hideLi = '<style>.feed-item-container {opacity: 0;}</style>';
     li.insertAdjacentHTML('beforebegin', hideLi);
+
+    var loadButton = document.querySelector('.browse-items-load-more-button');
+    loadButton.innerHTML = '<span class="yt-uix-button-content"><span class="load-more-loading"><span class="yt-spinner"><span class="yt-spinner-img  yt-sprite" title="Loading icon"></span> Loading...</span></span><span class="load-more-text hid" style="display: none;"> Load more</span></span>'
     li.after(document.querySelector('.browse-items-load-more-button'));
 }
 
@@ -139,14 +151,6 @@ function evaluateUrl() {
     }
 }
 
-function createMenuOptions() {
-    var ul = document.querySelector('.subnav-sort-menu>ul');
-    var ytUser = document.querySelector('#appbar-nav>a').attributes.href.value;
-
-    ul.innerHTML += "<li role=\"menuitem\"><span href=\"" + ytUser + "/videos?sort=la&amp;view=0&amp;flow=list\" onclick=\";yt.window.navigate(this.getAttribute('href'));return false;\" class=\" yt-uix-button-menu-item spf-link\">Length (ascending)</span></li>";
-    ul.innerHTML += "<li role=\"menuitem\"><span href=\"" + ytUser + "/videos?sort=ld&amp;view=0&amp;flow=list\" onclick=\";yt.window.navigate(this.getAttribute('href'));return false;\" class=\" yt-uix-button-menu-item spf-link\">Length (descending)</span></li>";
-}
-
 function createMenuOnNavigation() {
     // Select the node that will be observed for mutations
     var targetNode = document.body;
@@ -158,6 +162,7 @@ function createMenuOnNavigation() {
     var callback = function(mutationsList, observer) {
         for(var mutation of mutationsList) {
             if (mutation.attributeName == 'data-spf-name'){
+                console.log(mutation);
                 createMenuOptions();
                 evaluateUrl();
             }
