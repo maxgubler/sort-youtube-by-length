@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sort YouTube Videos Page By Length
 // @namespace    https://github.com/maxgubler/
-// @version      0.4.0
+// @version      0.4.1
 // @description  Loads all videos and sorts by length
 // @author       Max Gubler
 // @match        https://www.youtube.com/*
@@ -130,10 +130,10 @@ function hideListItems() {
     }
 }
 
-function evaluateUrl(parsedUrl) {
-    var urlVar = parsedUrl.searchParams.get('sort');
+function evaluateSort(parsedUrl) {
+    var sort = parsedUrl.searchParams.get('sort');
 
-    if (urlVar == 'la') {
+    if (sort == 'la') {
         if (hideListItems()) {
             fixSubnavList(0);
             start(0);
@@ -142,7 +142,7 @@ function evaluateUrl(parsedUrl) {
             return false;
         }
     }
-    else if (urlVar == 'ld') {
+    else if (sort == 'ld') {
         if (hideListItems()) {
             fixSubnavList(1);
             start(1);
@@ -156,54 +156,68 @@ function evaluateUrl(parsedUrl) {
     }
 }
 
-function createMenuOptions(ul) {
+function insertSubnavMenuOptions(ul) {
     var ytUser = document.querySelector('#appbar-nav>a').attributes.href.value;
     ul.innerHTML += "<li role=\"menuitem\"><span href=\"" + ytUser + "/videos?sort=la&amp;view=0&amp;flow=list\" onclick=\";yt.window.navigate(this.getAttribute('href'));return false;\" class=\" yt-uix-button-menu-item spf-link\">Length (ascending)</span></li>";
     ul.innerHTML += "<li role=\"menuitem\"><span href=\"" + ytUser + "/videos?sort=ld&amp;view=0&amp;flow=list\" onclick=\";yt.window.navigate(this.getAttribute('href'));return false;\" class=\" yt-uix-button-menu-item spf-link\">Length (descending)</span></li>";
 }
 
-function createMenuOnNavigation() {
-    // Parse url to check if location is videos page
+function editDOM(parsedUrl) {
+    var ul = document.querySelector('.subnav-sort-menu>ul');
+
+    console.log('Attempt to insert subnavigation menu options...');
+    if (ul) {
+        console.log('Subnav ul ready: Create subnav menu options!');
+        insertSubnavMenuOptions(ul);
+        console.log('Sort by length?');
+        evaluateSort(parsedUrl);
+        return true;
+    }
+    else {
+        console.log('Subnav ul not ready: Wait for mutation...');
+        return false;
+    }
+}
+
+function validateUrl() {
     var parsedUrl = new URL(window.location.href);
     var pathnameArray = parsedUrl.pathname.split('/');
 
-    console.log('Evaluate current navigation page...');
     if (pathnameArray[pathnameArray.length - 1] == 'videos') {
-        console.log('Current page: Videos');
-        console.log('Check if subnavigation ul is ready...');
-        var ul = document.querySelector('.subnav-sort-menu>ul');
-
-        if (ul) {
-            console.log('Is subnav ul ready: Yes! Create subnav menu options!');
-            createMenuOptions(ul);
-            evaluateUrl(parsedUrl);
-            return true;
-        }
-        else {
-            console.log('Is subnav ul ready: No. Wait for mutation...');
-            return false;
-        }
-
+        return parsedUrl;
     }
     else {
-        console.log('Current page: Not videos. Do nothing.');
         return false;
     }
 }
 
 function preLoad() {
+    var parsedVideosUrl = false;
     var liMutated = false;
+
     var mutationObserver = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
-            // Hide list items before loading them
-            if (liMutated == false && mutation.target == document.querySelector('#browse-items-primary>li')) {
-                liMutated = true;
-                console.log('li mutation observered: Evaluate navigation...');
-                createMenuOnNavigation();
-            }
+            // When navigation is detected, check if location is videos page
             if (mutation.attributeName == 'data-spf-name'){
                 console.log('------- YouTube Navigation Detected -------');
-                createMenuOnNavigation();
+
+                console.log('Evaluate current navigation page...');
+                parsedVideosUrl = validateUrl();
+
+                if (parsedVideosUrl) {
+                    console.log('Current page: Videos');
+                    editDOM(parsedVideosUrl);
+                }
+                else {
+                    console.log('Current page: Not videos. Do nothing.');
+                    return false;
+                }
+            }
+            // Hide list items before loading them
+            if (parsedVideosUrl && liMutated == false && mutation.target == document.querySelector('#browse-items-primary>li')) {
+                liMutated = true;
+                console.log('li mutation observered');
+                editDOM(parsedVideosUrl);
             }
         });
     });
