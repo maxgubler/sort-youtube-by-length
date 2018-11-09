@@ -1,14 +1,13 @@
 // ==UserScript==
 // @name         Sort YouTube Videos Page By Length
 // @namespace    https://github.com/maxgubler/
-// @version      0.3.2
+// @version      0.4.0
 // @description  Loads all videos and sorts by length
 // @author       Max Gubler
-// @match        https://www.youtube.com/*/videos*
+// @match        https://www.youtube.com/*
 // @run-at       document-start
 // @grant        none
 // ==/UserScript==
-/* TODO: Fix TypeError: ul is null when navigating away from videos page */
 
 function hmsToSeconds(str) {
     var p = str.split(':'), s = 0, m = 1;
@@ -56,6 +55,7 @@ function sortAndUpdateDOM(order) {
 
 // Load all videos
 function start(order) {
+    console.log('Start loading videos...');
     var firstClick = 0;
 
     // Select the node that will be observed for mutations
@@ -93,6 +93,7 @@ function start(order) {
 }
 
 function fixSubnavList(order){
+    console.log('Fixing subnavigation list');
     var ytUser = document.querySelector('#appbar-nav>a').attributes.href.value;
 
     if (order == 0) {
@@ -110,92 +111,99 @@ function fixSubnavList(order){
     }
 }
 
-function createMenuOptions() {
-    var ul = document.querySelector('.subnav-sort-menu>ul');
-    var ytUser = document.querySelector('#appbar-nav>a').attributes.href.value;
+function hideListItems() {
+    var li = document.querySelector('#browse-items-primary>li');
+    if (li) {
+        console.log('Is li ready: Yes, hiding list items!');
+        var hideLi = '<style>.feed-item-container {opacity: 0;}</style>';
+        li.insertAdjacentHTML('beforebegin', hideLi);
 
+        var loadButton = document.querySelector('.browse-items-load-more-button');
+        loadButton.innerHTML = '<span class="yt-uix-button-content"><span class="load-more-loading"><span class="yt-spinner"><span class="yt-spinner-img  yt-sprite" title="Loading icon"></span> Loading...</span></span><span class="load-more-text hid" style="display: none;"> Load more</span></span>'
+        li.after(document.querySelector('.browse-items-load-more-button'));
+
+        return true;
+    }
+    else {
+        console.log('Is li ready: No li found, return false');
+        return false;
+    }
+}
+
+function evaluateUrl(parsedUrl) {
+    var urlVar = parsedUrl.searchParams.get('sort');
+
+    if (urlVar == 'la') {
+        if (hideListItems()) {
+            fixSubnavList(0);
+            start(0);
+        }
+        else {
+            return false;
+        }
+    }
+    else if (urlVar == 'ld') {
+        if (hideListItems()) {
+            fixSubnavList(1);
+            start(1);
+        }
+        else {
+            return false;
+        }
+    }
+    else {
+        console.log('Not sorting by length: Do not sort.');
+    }
+}
+
+function createMenuOptions(ul) {
+    var ytUser = document.querySelector('#appbar-nav>a').attributes.href.value;
     ul.innerHTML += "<li role=\"menuitem\"><span href=\"" + ytUser + "/videos?sort=la&amp;view=0&amp;flow=list\" onclick=\";yt.window.navigate(this.getAttribute('href'));return false;\" class=\" yt-uix-button-menu-item spf-link\">Length (ascending)</span></li>";
     ul.innerHTML += "<li role=\"menuitem\"><span href=\"" + ytUser + "/videos?sort=ld&amp;view=0&amp;flow=list\" onclick=\";yt.window.navigate(this.getAttribute('href'));return false;\" class=\" yt-uix-button-menu-item spf-link\">Length (descending)</span></li>";
 }
 
-function hideListItems() {
-    var li = document.querySelector('#browse-items-primary>li');
-    var hideLi = '<style>.feed-item-container {opacity: 0;}</style>';
-    li.insertAdjacentHTML('beforebegin', hideLi);
-
-    var loadButton = document.querySelector('.browse-items-load-more-button');
-    loadButton.innerHTML = '<span class="yt-uix-button-content"><span class="load-more-loading"><span class="yt-spinner"><span class="yt-spinner-img  yt-sprite" title="Loading icon"></span> Loading...</span></span><span class="load-more-text hid" style="display: none;"> Load more</span></span>'
-    li.after(document.querySelector('.browse-items-load-more-button'));
-}
-
-function getUrlVar() {
-    var vars = {};
-    var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
-        vars[key] = value;
-    });
-    return vars;
-}
-
-function evaluateUrl() {
-    var urlVar = getUrlVar().sort;
-
-    if (urlVar == 'la') {
-        hideListItems();
-        fixSubnavList(0);
-        start(0);
-    }
-    else if (urlVar == 'ld') {
-        hideListItems();
-        fixSubnavList(1);
-        start(1);
-    }
-}
-
 function createMenuOnNavigation() {
-    // Select the node that will be observed for mutations
-    var targetNode = document.body;
+    // Parse url to check if location is videos page
+    var parsedUrl = new URL(window.location.href);
+    var pathnameArray = parsedUrl.pathname.split('/');
 
-    // Options for the observer (which mutations to observe)
-    var config = { attributes: true };
+    console.log('Evaluate current navigation page...');
+    if (pathnameArray[pathnameArray.length - 1] == 'videos') {
+        console.log('Current page: Videos');
+        console.log('Check if subnavigation ul is ready...');
+        var ul = document.querySelector('.subnav-sort-menu>ul');
 
-    // Callback function to execute when mutations are observed
-    var callback = function(mutationsList, observer) {
-        for(var mutation of mutationsList) {
-            if (mutation.attributeName == 'data-spf-name'){
-                console.log(mutation);
-                createMenuOptions();
-                evaluateUrl();
-            }
+        if (ul) {
+            console.log('Is subnav ul ready: Yes! Create subnav menu options!');
+            createMenuOptions(ul);
+            evaluateUrl(parsedUrl);
+            return true;
         }
-    };
+        else {
+            console.log('Is subnav ul ready: No. Wait for mutation...');
+            return false;
+        }
 
-    // Create an observer instance linked to the callback function
-    var observer = new MutationObserver(callback);
-
-    // Start observing the target node for configured mutations
-    observer.observe(targetNode, config);
-}
-
-function main() {
-    createMenuOnNavigation();
-    createMenuOptions();
-    // Evaluate and start if sorting by length
-    evaluateUrl();
+    }
+    else {
+        console.log('Current page: Not videos. Do nothing.');
+        return false;
+    }
 }
 
 function preLoad() {
-    var hiddenLi = 0;
+    var liMutated = false;
     var mutationObserver = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
             // Hide list items before loading them
-            if (hiddenLi == 0 && mutation.target == document.querySelector('#browse-items-primary>li')) {
-                hiddenLi = 1;
-                main();
+            if (liMutated == false && mutation.target == document.querySelector('#browse-items-primary>li')) {
+                liMutated = true;
+                console.log('li mutation observered: Evaluate navigation...');
+                createMenuOnNavigation();
             }
-            // Check for body page-loaded class to begin
-            if (mutation.target == document.documentElement && document.querySelector('.page-loaded')){
-                mutationObserver.disconnect();
-                return;
+            if (mutation.attributeName == 'data-spf-name'){
+                console.log('------- YouTube Navigation Detected -------');
+                createMenuOnNavigation();
             }
         });
     });
