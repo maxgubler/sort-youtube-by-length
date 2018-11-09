@@ -1,17 +1,13 @@
 // ==UserScript==
 // @name         Sort YouTube Videos Page By Length
 // @namespace    https://github.com/maxgubler/
-// @version      0.2
+// @version      0.3.0
 // @description  Loads all videos and sorts by length
 // @author       Max Gubler
 // @match        https://www.youtube.com/*/videos*
+// @run-at       document-start
 // @grant        none
 // ==/UserScript==
-
-/* TODO: Don't resort if already on sorted page--just reverse order */
-/* TODO: Hide videos while sorting */
-/* TODO: Try to optimize with fetch / getMoreContent */
-// @run-at       document-start
 
 function hmsToSeconds(str) {
     var p = str.split(':'), s = 0, m = 1;
@@ -113,6 +109,13 @@ function fixSubnavList(order){
     }
 }
 
+function hideListItems() {
+    var li = document.querySelector('#browse-items-primary>li');
+    var hideLi = '<style>.feed-item-container {opacity: 0;}</style>';
+    li.insertAdjacentHTML('beforebegin', hideLi);
+    li.after(document.querySelector('.browse-items-load-more-button'));
+}
+
 function getUrlVar() {
     var vars = {};
     var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
@@ -121,24 +124,17 @@ function getUrlVar() {
     return vars;
 }
 
-function hideListItems() {
-    var li = document.querySelector('#browse-items-primary>li');
-    var hideLi = '<style>.feed-item-container {opacity: 0;}</style>';
-    li.insertAdjacentHTML('beforebegin', hideLi);
-    li.after(document.querySelector('.browse-items-load-more-button'));
-}
-
 function evaluateUrl() {
     var urlVar = getUrlVar().sort;
 
     if (urlVar == 'la') {
-        fixSubnavList(0);
         hideListItems();
+        fixSubnavList(0);
         start(0);
     }
     else if (urlVar == 'ld') {
-        fixSubnavList(1);
         hideListItems();
+        fixSubnavList(1);
         start(1);
     }
 }
@@ -175,12 +171,41 @@ function createMenuOnNavigation() {
     observer.observe(targetNode, config);
 }
 
-(function() {
-    'use strict';
-
+function main() {
     createMenuOnNavigation();
     createMenuOptions();
     // Evaluate and start if sorting by length
     evaluateUrl();
+}
 
+function preLoad() {
+    var hiddenLi = 0;
+    var mutationObserver = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            // Hide list items before loading them
+            if (hiddenLi == 0 && mutation.target == document.querySelector('#browse-items-primary>li')) {
+                hiddenLi = 1;
+                main();
+            }
+            // Check for body page-loaded class to begin
+            if (mutation.target == document.documentElement && document.querySelector('.page-loaded')){
+                mutationObserver.disconnect();
+                return;
+            }
+        });
+    });
+    // Starts listening for changes in the root HTML element of the page.
+    mutationObserver.observe(document.documentElement, {
+        attributes: true,
+        characterData: true,
+        childList: true,
+        subtree: true,
+        attributeOldValue: true,
+        characterDataOldValue: true
+    });
+}
+
+(function() {
+    'use strict';
+    preLoad();
 })();
