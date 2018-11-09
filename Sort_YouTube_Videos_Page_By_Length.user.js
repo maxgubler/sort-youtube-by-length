@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Sort YouTube Videos Page By Length
-// @namespace    https://github.com/maxgubler/
+// @namespace    https://github.com/maxgubler/sort-youtube-by-length
 // @version      0.4.1
 // @description  Loads all videos and sorts by length
 // @author       Max Gubler
 // @match        https://www.youtube.com/*
 // @run-at       document-start
+// @downloadURL  https://raw.githubusercontent.com/maxgubler/sort-youtube-by-length/master/Sort_YouTube_Videos_Page_By_Length.user.js
 // @grant        none
 // ==/UserScript==
 
