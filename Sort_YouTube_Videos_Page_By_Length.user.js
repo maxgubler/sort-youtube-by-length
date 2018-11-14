@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sort YouTube Videos Page By Length
 // @namespace    https://github.com/maxgubler/sort-youtube-by-length
-// @version      0.4.1
+// @version      0.4.2
 // @description  Loads all videos and sorts by length
 // @author       Max Gubler
 // @match        https://www.youtube.com/*
@@ -120,8 +120,10 @@ function hideListItems() {
         li.insertAdjacentHTML('beforebegin', hideLi);
 
         var loadButton = document.querySelector('.browse-items-load-more-button');
-        loadButton.innerHTML = '<span class="yt-uix-button-content"><span class="load-more-loading"><span class="yt-spinner"><span class="yt-spinner-img  yt-sprite" title="Loading icon"></span> Loading...</span></span><span class="load-more-text hid" style="display: none;"> Load more</span></span>'
-        li.after(document.querySelector('.browse-items-load-more-button'));
+        if (loadButton) {
+            loadButton.innerHTML = '<span class="yt-uix-button-content"><span class="load-more-loading"><span class="yt-spinner"><span class="yt-spinner-img  yt-sprite" title="Loading icon"></span> Loading...</span></span><span class="load-more-text hid" style="display: none;"> Load more</span></span>'
+            li.after(document.querySelector('.browse-items-load-more-button'));
+        }
 
         return true;
     }
